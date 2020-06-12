@@ -67,6 +67,66 @@ module "colossus_rta_cidr" {
   source = "../modules/routetable_associations"
   subnet_id      = module.collossus_public_subnet.id
   route_table_id = module.colossus_pub_rt.id
+}
+
+module "colossus_sec_group" {
+  source = "../modules/Sg"
+  name        = "colossus_sg"
+  description = "security group for colossus"
+  http_ingress_description = "Allowing http port"
+  http_cidr_block = ["0.0.0.0/0"]
+  ssh_ingress_description = "Allowing ssh port"
+  ssh_cidr_block = ["0.0.0.0/0"]
+  vpc_id      = module.colossus_vpc.id
+  tags = {
+    Name = "colossus_securitygrp"
+  }
+
+}
+
+module "colossus_ec2_public_instance" {
+  source = "../modules/Ec2"
+  ami = "ami-039a49e70ea773ffc"
+  instance_type = "t2.micro"
+  security_groups = [module.colossus_sec_group.id]
+  subnet_id = module.collossus_public_subnet.id
+  key_name = "ansible-jenk.pem"
+  associate_public_ip_address  = true
+  tags = {
+    Name = "colossus_public_instance"
+  }
+}
+
+
+module "colossus_ec2_private_instance" {
+  source = "../modules/Ec2"
+  ami = "ami-039a49e70ea773ffc"
+  instance_type = "t2.micro"
+  security_groups = [module.colossus_sec_group.id]
+  subnet_id = module.collossus_private_subnet.id
+  associate_public_ip_address  = true
+  key_name = "ansible-jenk.pem"
+  tags = {
+    Name = "collossus_private_instance"
+  }
+}
+
+module "colossus_launchconfiguration" {
+  source = "../modules/Launchconfiguration"
+  name = "colossus_launchconf"
+  image_id = "ami-039a49e70ea773ffc"
+  instance_type = "t2.micro"
+  key_name = "ansible-jenk.pem"
+  security_groups = [module.colossus_sec_group.id]
+}
+
+module "colossus_autoscalinggroup" {
+  source = "../modules/ASG"
+  name = "colossus_autoscaling"
+  launch_configuration = module.colossus_launchconfiguration.name
+  min_size = 2
+  max_size = 3
+  vpc_zone_identifier = [module.collossus_public_subnet.id]
 
 
 }
